@@ -13,7 +13,7 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.ScheduleApp">
         <activity
-            android:name=".MainActivity"
+            android:name=".ScheduleListActivity"
             android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
