@@ -1,29 +1,32 @@
 package com.challenge.scheduleapp.presentation.adapter
 
 import android.view.LayoutInflater
+import android.view.View
 import android.view.ViewGroup
-import android.widget.Button
-import android.widget.TextView
+import androidx.core.content.ContextCompat
 import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
 import com.challenge.scheduleapp.R
 import com.challenge.scheduleapp.databinding.ItemScheduleBinding
 import com.challenge.scheduleapp.domain.model.AppSchedule
+import com.challenge.scheduleapp.domain.model.ScheduleStatus
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
-class ScheduleListAdapter(private val onEditClick: (AppSchedule) -> Unit,
-                         private val onCancelClick: (AppSchedule) -> Unit,
-                         private val onDeleteClick: (AppSchedule) -> Unit
+class ScheduleListAdapter(
+    private val onEditClick: (AppSchedule) -> Unit,
+    private val onCancelClick: (AppSchedule) -> Unit,
+    private val onDeleteClick: (AppSchedule) -> Unit
 ) : ListAdapter<AppSchedule, ScheduleListAdapter.ScheduleViewHolder>(ScheduleDiffCallback()) {
 
     private var lastClickTime = 0L
     private val CLICK_BUFFER = 1000L // 1 second throttle
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ScheduleViewHolder {
-        val binding = ItemScheduleBinding.inflate(LayoutInflater.from(parent.context), parent, false)
+        val binding =
+            ItemScheduleBinding.inflate(LayoutInflater.from(parent.context), parent, false)
         return ScheduleViewHolder(binding)
     }
 
@@ -40,33 +43,69 @@ class ScheduleListAdapter(private val onEditClick: (AppSchedule) -> Unit,
         return true
     }
 
-    inner class ScheduleViewHolder(val binding: ItemScheduleBinding) : RecyclerView.ViewHolder(binding.root) {
-        private val appNameText: TextView = itemView.findViewById(R.id.tvAppName)
-        private val scheduledTimeText: TextView = itemView.findViewById(R.id.tvScheduledTime)
-        private val statusText: TextView = itemView.findViewById(R.id.tvStatus)
-        private val editButton: Button = itemView.findViewById(R.id.btnEdit)
-        private val cancelButton: Button = itemView.findViewById(R.id.btnCancel)
-        private val deleteButton: Button = itemView.findViewById(R.id.btnDelete)
-
+    inner class ScheduleViewHolder(val binding: ItemScheduleBinding) :
+        RecyclerView.ViewHolder(binding.root) {
         fun bind(schedule: AppSchedule) {
             binding.tvAppName.text = schedule.appName
             binding.tvScheduledTime.text =
-                binding.root.context.getString(R.string.scheduled_time, formatTime(schedule.scheduledTime))
+                binding.root.context.getString(
+                    R.string.scheduled_time,
+                    formatTime(schedule.scheduledTime)
+                )
             binding.tvStatus.text =
-                binding.root.context.getString(R.string.status, "")
+                binding.root.context.getString(R.string.status, schedule.status.name)
+
+            // Set status color
+            val statusColor = when (schedule.status) {
+                ScheduleStatus.PENDING -> ContextCompat.getColor(
+                    binding.root.context,
+                    R.color.orange
+                )
+
+                ScheduleStatus.EXECUTED -> ContextCompat.getColor(
+                    binding.root.context,
+                    R.color.green
+                )
+
+                ScheduleStatus.CANCELLED -> ContextCompat.getColor(
+                    binding.root.context,
+                    R.color.gray
+                )
+
+                ScheduleStatus.FAILED -> ContextCompat.getColor(binding.root.context, R.color.red)
+            }
+
+            binding.tvStatus.setTextColor(statusColor)
 
 
-            editButton.setOnClickListener {
+            when (schedule.status) {
+                ScheduleStatus.PENDING -> {
+                    // Pending: show edit and cancel buttons
+                    binding.btnEdit.visibility = View.VISIBLE
+                    binding.btnCancel.visibility = View.VISIBLE
+                    binding.btnDelete.visibility = View.GONE
+                }
+
+                ScheduleStatus.EXECUTED, ScheduleStatus.CANCELLED, ScheduleStatus.FAILED -> {
+                    // Executed/Cancelled/Failed: show delete button only
+                    binding.btnEdit.visibility = View.GONE
+                    binding.btnCancel.visibility = View.GONE
+                    binding.btnDelete.visibility = View.VISIBLE
+                }
+            }
+
+
+            binding.btnEdit.setOnClickListener {
                 if (isClickAllowed()) {
                     onEditClick(schedule)
                 }
             }
-            cancelButton.setOnClickListener {
+            binding.btnCancel.setOnClickListener {
                 if (isClickAllowed()) {
                     onCancelClick(schedule)
                 }
             }
-            deleteButton.setOnClickListener {
+            binding.btnDelete.setOnClickListener {
                 if (isClickAllowed()) {
                     onDeleteClick(schedule)
                 }

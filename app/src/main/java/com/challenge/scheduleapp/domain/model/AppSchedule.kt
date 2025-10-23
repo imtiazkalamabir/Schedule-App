@@ -10,6 +10,7 @@ data class AppSchedule(
     val createdAt: Long,
     val executedAt: Long? = null
 )
+
 enum class ScheduleStatus {
     PENDING,
     EXECUTED,
