@@ -83,8 +83,17 @@ class ScheduleListActivity : AppCompatActivity() {
         dialogBinding.progressBar.visibility = View.VISIBLE
 
         // load apps in the recyclerView
+        scheduleViewModel.installedApps.observe(this) { apps ->
+            dialogBinding.progressBar.visibility = View.GONE
+            appListAdapter.submitList(apps)
+        }
 
-        dialogBinding.progressBar.visibility = View.GONE
+        if (scheduleViewModel.installedApps.value.isNullOrEmpty()) {
+            scheduleViewModel.loadInstalledApps()
+        } else {
+            dialogBinding.progressBar.visibility = View.GONE
+            appListAdapter.submitList(scheduleViewModel.installedApps.value)
+        }
 
         dialog.show()
 
