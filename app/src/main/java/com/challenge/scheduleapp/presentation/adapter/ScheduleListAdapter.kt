@@ -113,7 +113,10 @@ class ScheduleListAdapter(
         }
 
         private fun formatTime(timeInMillis: Long): String {
-            val sdf = SimpleDateFormat("MMM dd, yyyy HH:mm", Locale.getDefault())
+            val sdf = SimpleDateFormat(
+                binding.root.context.getString(R.string.time_pattern),
+                Locale.getDefault()
+            )
             return sdf.format(Date(timeInMillis))
         }
     }
