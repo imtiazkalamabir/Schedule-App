@@ -22,7 +22,7 @@ class ScheduleListAdapter(
 ) : ListAdapter<AppSchedule, ScheduleListAdapter.ScheduleViewHolder>(ScheduleDiffCallback()) {
 
     private var lastClickTime = 0L
-    private val CLICK_BUFFER = 1000L // 1 second throttle
+    private val CLICK_BUFFER = 1000L // 1 second buffer
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ScheduleViewHolder {
         val binding =

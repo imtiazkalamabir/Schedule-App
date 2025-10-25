@@ -12,11 +12,14 @@ import com.challenge.scheduleapp.domain.usecase.GetAllAppScheduleUseCase
 import com.challenge.scheduleapp.domain.usecase.GetInstalledAppsUseCase
 import com.challenge.scheduleapp.presentation.model.ScheduleListUiState
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
+@FlowPreview
 @HiltViewModel
 class ScheduleViewModel @Inject constructor(
     private val getInstalledAppsUseCase: GetInstalledAppsUseCase,
@@ -34,6 +37,8 @@ class ScheduleViewModel @Inject constructor(
     private val _processResult = MutableLiveData<ProcessResult?>()
     val processResult: LiveData<ProcessResult?> = _processResult
 
+    private var isLoadingApps = false
+
     init {
         loadAppSchedules()
     }
@@ -43,26 +48,37 @@ class ScheduleViewModel @Inject constructor(
             _appSchedulesUiState.value = ScheduleListUiState(isLoading = true)
 
             getAllAppScheduleUseCase()
+                .debounce(300)
                 .distinctUntilChanged()
                 .catch { e ->
-                    _appSchedulesUiState.postValue( ScheduleListUiState(error = "Error loading schedules"))
+                    _appSchedulesUiState.postValue(ScheduleListUiState(error = "Error loading schedules"))
                     Log.e(TAG, "Error loading schedules", e)
                 }
                 .collect { schedules ->
-                _appSchedulesUiState.value = ScheduleListUiState(schedules = schedules)
-            }
+                    _appSchedulesUiState.postValue(ScheduleListUiState(schedules = schedules))
+                }
         }
     }
 
     fun loadInstalledApps() {
+
+        if (isLoadingApps || !_installedApps.value.isNullOrEmpty()) {
+            return
+        }
+
+        isLoadingApps = true
 
         viewModelScope.launch {
             try {
                 val apps = getInstalledAppsUseCase()
                 _installedApps.postValue(apps)
             } catch (e: Exception) {
+                _processResult.postValue(
+                    ProcessResult.Error("Failed to load installed apps")
+                )
                 Log.e(TAG, "Error loading installed apps: ${e.message}")
             } finally {
+                isLoadingApps = false
             }
         }
 

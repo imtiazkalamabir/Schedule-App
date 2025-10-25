@@ -27,6 +27,8 @@ import kotlin.getValue
 @AndroidEntryPoint
 class ScheduleListActivity : AppCompatActivity() {
 
+    private var shouldScrollToTop = false
+    private var lastScheduleCount = 0
     private val scheduleViewModel: ScheduleViewModel by viewModels()
 
     private val scheduleListAdapter = ScheduleListAdapter(
@@ -70,23 +72,32 @@ class ScheduleListActivity : AppCompatActivity() {
         binding.recyclerViewSchedules.apply {
             layoutManager = LinearLayoutManager(binding.root.context)
             adapter = scheduleListAdapter
+            setHasFixedSize(true)
+            setItemViewCacheSize(20)
+            recycledViewPool.setMaxRecycledViews(0, 20)
         }
     }
 
     private fun observeViewModel() {
         scheduleViewModel.processResult.observe(this) { result ->
-            when (result) {
-                is ProcessResult.Success -> {
-                    // Handle success
-                    Toast.makeText(this, result.message, Toast.LENGTH_SHORT).show()
+            result?.let {
+                when (it) {
+                    is ProcessResult.Success -> {
+                        // Handle success
+                        Toast.makeText(this, it.message, Toast.LENGTH_SHORT).show()
+                        if (it.message.contains("added", ignoreCase = true)) {
+                            shouldScrollToTop = true
+                        }
+                    }
+
+                    is ProcessResult.Error -> {
+                        // Handle error
+                        Toast.makeText(this, it.message, Toast.LENGTH_SHORT).show()
+                        shouldScrollToTop = false
+                    }
                 }
-                is ProcessResult.Error -> {
-                    // Handle error
-                    Toast.makeText(this, result.message, Toast.LENGTH_SHORT).show()
-                }
-                else -> {}
+                scheduleViewModel.clearProcessResult()
             }
-            scheduleViewModel.clearProcessResult()
         }
 
         scheduleViewModel.appSchedulesUiState.observe(this) { state ->
@@ -100,18 +111,44 @@ class ScheduleListActivity : AppCompatActivity() {
                 Toast.makeText(this, error, Toast.LENGTH_SHORT).show()
             }
 
+            val wasScheduleAdded = state.schedules.size > lastScheduleCount
+            lastScheduleCount = state.schedules.size
+
+
             if (state.schedules.isNotEmpty() && !state.isLoading) {
                 binding.recyclerViewSchedules.visibility = View.VISIBLE
                 binding.tvEmptyState.visibility = View.GONE
-            } else {
+            } else if (state.schedules.isEmpty() && !state.isLoading) {
                 binding.recyclerViewSchedules.visibility = View.GONE
                 binding.tvEmptyState.visibility = View.VISIBLE
             }
 
-            scheduleListAdapter.submitList(state.schedules)
+            scheduleListAdapter.submitList(state.schedules) {
+                if (shouldScrollToTop && wasScheduleAdded) {
+                    shouldScrollToTop = false
+                    binding.recyclerViewSchedules.post {
+                        (binding.recyclerViewSchedules.layoutManager as? LinearLayoutManager)?.scrollToPositionWithOffset(
+                            0,
+                            0
+                        )
+                    }
+                }
+            }
         }
-
     }
+
+    private fun <T> androidx.lifecycle.LiveData<T>.observeOnce(
+        lifecycleOwner: androidx.lifecycle.LifecycleOwner,
+        observer: (T) -> Unit
+    ) {
+        observe(lifecycleOwner, object : androidx.lifecycle.Observer<T> {
+            override fun onChanged(value: T) {
+                observer(value)
+                removeObserver(this)
+            }
+        })
+    }
+
 
     private fun showSelectAppDialog() {
 
@@ -124,7 +161,7 @@ class ScheduleListActivity : AppCompatActivity() {
         }
 
         dialogBinding.recyclerViewApps.apply {
-            layoutManager = LinearLayoutManager(this@ScheduleListActivity)
+            layoutManager = LinearLayoutManager(binding.root.context)
             adapter = appListAdapter
         }
 
@@ -135,7 +172,7 @@ class ScheduleListActivity : AppCompatActivity() {
         dialogBinding.progressBar.visibility = View.VISIBLE
 
         // load apps in the recyclerView
-        scheduleViewModel.installedApps.observe(this) { apps ->
+        scheduleViewModel.installedApps.observeOnce(this) { apps ->
             dialogBinding.progressBar.visibility = View.GONE
             appListAdapter.submitList(apps)
         }
