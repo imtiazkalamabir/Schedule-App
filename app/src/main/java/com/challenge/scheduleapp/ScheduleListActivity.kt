@@ -1,7 +1,10 @@
 package com.challenge.scheduleapp
 
+import android.app.DatePickerDialog
+import android.app.TimePickerDialog
 import android.os.Bundle
 import android.view.View
+import android.widget.Toast
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
 import androidx.appcompat.app.AlertDialog
@@ -12,10 +15,13 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import com.challenge.scheduleapp.databinding.ActivityScheduleListBinding
 import com.challenge.scheduleapp.databinding.DialogSelectAppBinding
 import com.challenge.scheduleapp.domain.model.AppSchedule
+import com.challenge.scheduleapp.domain.model.InstalledApp
+import com.challenge.scheduleapp.domain.model.ProcessResult
 import com.challenge.scheduleapp.presentation.adapter.AppListAdapter
 import com.challenge.scheduleapp.presentation.adapter.ScheduleListAdapter
 import com.challenge.scheduleapp.presentation.viewmodel.ScheduleViewModel
 import dagger.hilt.android.AndroidEntryPoint
+import java.util.Calendar
 import kotlin.getValue
 
 @AndroidEntryPoint
@@ -43,10 +49,15 @@ class ScheduleListActivity : AppCompatActivity() {
     private fun setupUI() {
 
         binding.fabAddSchedule.setOnClickListener {
-            showAddScheduleDialog()
+            showSelectAppDialog()
         }
 
         setUpRecycleView()
+        setUpWindowInsets()
+        observeViewModel()
+    }
+
+    private fun setUpWindowInsets() {
 
         ViewCompat.setOnApplyWindowInsetsListener(binding.root) { v, insets ->
             val systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
@@ -62,13 +73,31 @@ class ScheduleListActivity : AppCompatActivity() {
         }
     }
 
-    private fun showAddScheduleDialog() {
+    private fun observeViewModel() {
+        scheduleViewModel.processResult.observe(this) { result ->
+            when (result) {
+                is ProcessResult.Success -> {
+                    // Handle success
+                    Toast.makeText(this, result.message, Toast.LENGTH_SHORT).show()
+                }
+                is ProcessResult.Error -> {
+                    // Handle error
+                    Toast.makeText(this, result.message, Toast.LENGTH_SHORT).show()
+                }
+                else -> {}
+            }
+            scheduleViewModel.clearProcessResult()
+        }
+    }
+
+    private fun showSelectAppDialog() {
 
         val dialogBinding = DialogSelectAppBinding.inflate(layoutInflater)
         val dialog = AlertDialog.Builder(this).setView(dialogBinding.root).create()
 
         val appListAdapter = AppListAdapter { app ->
             dialog.dismiss()
+            showDateTimeSelectDialog(app)
         }
 
         dialogBinding.recyclerViewApps.apply {
@@ -98,6 +127,48 @@ class ScheduleListActivity : AppCompatActivity() {
         dialog.show()
 
     }
+
+    private fun showDateTimeSelectDialog(app: InstalledApp) {
+
+        val calendar = Calendar.getInstance()
+
+        val datePickerDialog = DatePickerDialog(
+            this, { _, year, month, dayOfMonth ->
+                calendar.set(Calendar.YEAR, year)
+                calendar.set(Calendar.MONTH, month)
+                calendar.set(Calendar.DAY_OF_MONTH, dayOfMonth)
+
+                val timePickerDialog = TimePickerDialog(
+                    this,
+                    { _, hourOfDay, minute ->
+                        calendar.set(Calendar.HOUR_OF_DAY, hourOfDay)
+                        calendar.set(Calendar.MINUTE, minute)
+                        calendar.set(Calendar.SECOND, 0)
+                        calendar.set(Calendar.MILLISECOND, 0)
+
+                        val scheduledTime = calendar.timeInMillis
+                        scheduleViewModel.addAppSchedule(
+                            app.packageName,
+                            app.appName,
+                            scheduledTime
+                        )
+                    },
+                    calendar.get(Calendar.HOUR_OF_DAY),
+                    calendar.get(Calendar.MINUTE),
+                    true
+                )
+                timePickerDialog.show()
+
+            },
+            calendar.get(Calendar.YEAR),
+            calendar.get(Calendar.MONTH),
+            calendar.get(Calendar.DAY_OF_MONTH)
+        )
+
+        datePickerDialog.datePicker.minDate = calendar.timeInMillis
+        datePickerDialog.show()
+    }
+
 
     private fun showEditScheduleDialog(schedule: AppSchedule) {
 

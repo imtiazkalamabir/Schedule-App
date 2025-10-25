@@ -6,6 +6,8 @@ import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.challenge.scheduleapp.domain.model.InstalledApp
+import com.challenge.scheduleapp.domain.model.ProcessResult
+import com.challenge.scheduleapp.domain.usecase.AddAppScheduleUseCase
 import com.challenge.scheduleapp.domain.usecase.GetInstalledAppsUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.launch
@@ -13,11 +15,16 @@ import javax.inject.Inject
 
 @HiltViewModel
 class ScheduleViewModel @Inject constructor(
-    private val getInstalledAppsUseCase: GetInstalledAppsUseCase
+    private val getInstalledAppsUseCase: GetInstalledAppsUseCase,
+    private val addAppScheduleUseCase: AddAppScheduleUseCase
 ) : ViewModel() {
 
     private val _installedApps = MutableLiveData<List<InstalledApp>>()
     val installedApps: LiveData<List<InstalledApp>> = _installedApps
+
+    private val _processResult = MutableLiveData<ProcessResult?>()
+    val processResult: LiveData<ProcessResult?> = _processResult
+
 
     fun loadInstalledApps() {
 
@@ -33,10 +40,32 @@ class ScheduleViewModel @Inject constructor(
 
     }
 
+    fun addAppSchedule(packageName: String, appName: String, scheduledTime: Long) {
+        Log.d(TAG, "addAppSchedule: $packageName, $appName, $scheduledTime")
+        viewModelScope.launch {
+            val result = addAppScheduleUseCase(packageName, appName, scheduledTime)
+            result.onSuccess { scheduleId ->
+                Log.d(TAG, "Schedule added to database successfully with id: $scheduleId")
+
+                // Schedule the alarm for the selected time
+
+                _processResult.postValue(ProcessResult.Success("Schedule added successfully"))
+
+            }.onFailure { e ->
+                _processResult.postValue(ProcessResult.Error("Failed to add scheduled"))
+                Log.d(TAG, "Error adding schedule: ${e.message}")
+            }
+        }
+    }
+
+    fun clearProcessResult() {
+        _processResult.value = null
+    }
+
+
     companion object {
         private const val TAG = "ScheduleViewModel"
     }
-
 
 }
 

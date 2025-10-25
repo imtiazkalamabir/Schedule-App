@@ -1,7 +1,9 @@
 package com.challenge.scheduleapp.di
 
 import com.challenge.scheduleapp.data.repository.AppRepositoryImpl
+import com.challenge.scheduleapp.data.repository.ScheduleRepositoryImpl
 import com.challenge.scheduleapp.domain.repository.AppRepository
+import com.challenge.scheduleapp.domain.repository.ScheduleRepository
 import dagger.Binds
 import dagger.Module
 import dagger.hilt.InstallIn
@@ -17,5 +19,11 @@ abstract class RepositoryModule {
     abstract fun bindAppRepository(
         appRepositoryImpl: AppRepositoryImpl
     ): AppRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindScheduleRepository(
+        scheduleRepositoryImpl: ScheduleRepositoryImpl
+    ): ScheduleRepository
 
 }
