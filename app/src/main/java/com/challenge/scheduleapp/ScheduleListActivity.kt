@@ -88,6 +88,29 @@ class ScheduleListActivity : AppCompatActivity() {
             }
             scheduleViewModel.clearProcessResult()
         }
+
+        scheduleViewModel.appSchedulesUiState.observe(this) { state ->
+            if (state.isLoading) {
+                binding.progressBar.visibility = View.VISIBLE
+            } else {
+                binding.progressBar.visibility = View.GONE
+            }
+
+            state.error?.let { error ->
+                Toast.makeText(this, error, Toast.LENGTH_SHORT).show()
+            }
+
+            if (state.schedules.isNotEmpty() && !state.isLoading) {
+                binding.recyclerViewSchedules.visibility = View.VISIBLE
+                binding.tvEmptyState.visibility = View.GONE
+            } else {
+                binding.recyclerViewSchedules.visibility = View.GONE
+                binding.tvEmptyState.visibility = View.VISIBLE
+            }
+
+            scheduleListAdapter.submitList(state.schedules)
+        }
+
     }
 
     private fun showSelectAppDialog() {

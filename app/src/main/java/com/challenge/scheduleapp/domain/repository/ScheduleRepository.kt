@@ -1,6 +1,7 @@
 package com.challenge.scheduleapp.domain.repository
 
 import com.challenge.scheduleapp.domain.model.AppSchedule
+import kotlinx.coroutines.flow.Flow
 
 interface ScheduleRepository {
 
@@ -8,7 +9,7 @@ interface ScheduleRepository {
 
     suspend fun hasTimeConflict(scheduledTime: Long, excludeId: Long? = null): Boolean
 
-    suspend fun getAllSchedules(): List<AppSchedule>
+    suspend fun getAllSchedules(): Flow<List<AppSchedule>>
 
     suspend fun getScheduleById(scheduleId: Long): AppSchedule?
 
