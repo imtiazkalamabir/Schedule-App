@@ -17,6 +17,7 @@ import com.challenge.scheduleapp.databinding.DialogSelectAppBinding
 import com.challenge.scheduleapp.domain.model.AppSchedule
 import com.challenge.scheduleapp.domain.model.InstalledApp
 import com.challenge.scheduleapp.domain.model.ProcessResult
+import com.challenge.scheduleapp.domain.model.ScheduleStatus
 import com.challenge.scheduleapp.presentation.adapter.AppListAdapter
 import com.challenge.scheduleapp.presentation.adapter.ScheduleListAdapter
 import com.challenge.scheduleapp.presentation.viewmodel.ScheduleViewModel
@@ -231,15 +232,66 @@ class ScheduleListActivity : AppCompatActivity() {
 
 
     private fun showEditScheduleDialog(schedule: AppSchedule) {
+        val calendar = Calendar.getInstance()
+        calendar.timeInMillis = schedule.scheduledTime
+
+        val datePickerDialog = DatePickerDialog(
+            this, { _, year, month, dayOfMonth ->
+                calendar.set(Calendar.YEAR, year)
+                calendar.set(Calendar.MONTH, month)
+                calendar.set(Calendar.DAY_OF_MONTH, dayOfMonth)
+
+                val timePickerDialog = TimePickerDialog(
+                    this,
+                    { _, hourOfDay, minute ->
+                        calendar.set(Calendar.HOUR_OF_DAY, hourOfDay)
+                        calendar.set(Calendar.MINUTE, minute)
+                        calendar.set(Calendar.SECOND, 0)
+                        calendar.set(Calendar.MILLISECOND, 0)
+
+                        val newScheduledTime = calendar.timeInMillis
+                        scheduleViewModel.updateAppSchedule(
+                            schedule.id,
+                            schedule.packageName,
+                            newScheduledTime
+                        )
+                    },
+                    calendar.get(Calendar.HOUR_OF_DAY),
+                    calendar.get(Calendar.MINUTE),
+                    true
+                )
+                timePickerDialog.show()
+            },
+            calendar.get(Calendar.YEAR),
+            calendar.get(Calendar.MONTH),
+            calendar.get(Calendar.DAY_OF_MONTH)
+        )
+
+        datePickerDialog.datePicker.minDate = System.currentTimeMillis()
+        datePickerDialog.show()
 
     }
 
     private fun showCancelConfirmDialog(schedule: AppSchedule) {
-
+        AlertDialog.Builder(this)
+            .setTitle("Cancel Schedule")
+            .setMessage("Are you sure you want to cancel this schedule?")
+            .setPositiveButton("Yes") { _, _ ->
+                scheduleViewModel.cancelAppSchedule(schedule.id, ScheduleStatus.CANCELLED.name)
+            }
+            .setNegativeButton("No", null)
+            .show()
     }
 
     private fun showDeleteConfirmDialog(schedule: AppSchedule) {
-
+        AlertDialog.Builder(this)
+            .setTitle("Delete Schedule")
+            .setMessage("Are you sure you want to delete this schedule?")
+            .setPositiveButton("Delete") { _, _ ->
+                scheduleViewModel.deleteAppSchedule(schedule.id)
+            }
+            .setNegativeButton("Cancel", null)
+            .show()
     }
 
 

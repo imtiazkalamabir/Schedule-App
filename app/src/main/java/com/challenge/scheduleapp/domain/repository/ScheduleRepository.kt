@@ -15,7 +15,7 @@ interface ScheduleRepository {
 
     suspend fun updateSchedule(schedule: AppSchedule)
 
-    suspend fun cancelSchedule(scheduleId: Long)
+    suspend fun cancelSchedule(scheduleId: Long, newStatus: String)
 
     suspend fun deleteSchedule(scheduleId: Long)
 }

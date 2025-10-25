@@ -8,8 +8,11 @@ import androidx.lifecycle.viewModelScope
 import com.challenge.scheduleapp.domain.model.InstalledApp
 import com.challenge.scheduleapp.domain.model.ProcessResult
 import com.challenge.scheduleapp.domain.usecase.AddAppScheduleUseCase
+import com.challenge.scheduleapp.domain.usecase.CancelAppScheduleUseCase
+import com.challenge.scheduleapp.domain.usecase.DeleteAppScheduleUseCase
 import com.challenge.scheduleapp.domain.usecase.GetAllAppScheduleUseCase
 import com.challenge.scheduleapp.domain.usecase.GetInstalledAppsUseCase
+import com.challenge.scheduleapp.domain.usecase.UpdateAppScheduleUseCase
 import com.challenge.scheduleapp.presentation.model.ScheduleListUiState
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.FlowPreview
@@ -24,7 +27,10 @@ import javax.inject.Inject
 class ScheduleViewModel @Inject constructor(
     private val getInstalledAppsUseCase: GetInstalledAppsUseCase,
     private val addAppScheduleUseCase: AddAppScheduleUseCase,
-    private val getAllAppScheduleUseCase: GetAllAppScheduleUseCase
+    private val getAllAppScheduleUseCase: GetAllAppScheduleUseCase,
+    private val cancelAppScheduleUseCase: CancelAppScheduleUseCase,
+    private val deleteAppScheduleUseCase: DeleteAppScheduleUseCase,
+    private val updateAppScheduleUseCase: UpdateAppScheduleUseCase
 ) : ViewModel() {
 
     private val _appSchedulesUiState = MutableLiveData<ScheduleListUiState>()
@@ -101,6 +107,46 @@ class ScheduleViewModel @Inject constructor(
             }
         }
     }
+
+    fun cancelAppSchedule(scheduleId: Long, newStatus: String) {
+        viewModelScope.launch {
+            val result = cancelAppScheduleUseCase(scheduleId, newStatus)
+            result.onSuccess {
+                _processResult.postValue(ProcessResult.Success("Schedule cancelled successfully"))
+                Log.d(TAG, "Schedule cancelled successfully")
+            }.onFailure { e ->
+                _processResult.postValue(ProcessResult.Error("Failed to cancel schedule"))
+                Log.e(TAG, "Error canceling schedule: ${e.message}")
+            }
+        }
+    }
+
+    fun deleteAppSchedule(scheduleId: Long) {
+        viewModelScope.launch {
+            try {
+                deleteAppScheduleUseCase(scheduleId)
+                _processResult.postValue(ProcessResult.Success("Schedule deleted successfully"))
+                Log.d(TAG, "Schedule deleted successfully")
+            } catch (e: Exception) {
+                _processResult.postValue(ProcessResult.Error("Failed to delete schedule"))
+                Log.e(TAG, "Error deleting schedule: ${e.message}")
+            }
+        }
+    }
+
+    fun updateAppSchedule(scheduleId: Long, packageName: String, newScheduledTime: Long) {
+        viewModelScope.launch {
+            val result = updateAppScheduleUseCase(scheduleId, newScheduledTime)
+            result.onSuccess {
+                _processResult.postValue(ProcessResult.Success("Schedule updated successfully"))
+                Log.d(TAG, "Schedule updated successfully")
+            }.onFailure { e ->
+                _processResult.postValue(ProcessResult.Error("Failed to update schedule"))
+                Log.e(TAG, "Error updating schedule: ${e.message}")
+            }
+        }
+    }
+
 
     fun clearProcessResult() {
         _processResult.value = null
