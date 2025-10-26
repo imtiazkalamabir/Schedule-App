@@ -1,13 +1,14 @@
 package com.challenge.scheduleapp.domain.usecase
 
+import com.challenge.scheduleapp.domain.manager.AppScheduleManager
 import com.challenge.scheduleapp.domain.model.InvalidTimeException
-import com.challenge.scheduleapp.domain.model.ScheduleStatus
 import com.challenge.scheduleapp.domain.model.TimeConflictException
 import com.challenge.scheduleapp.domain.repository.ScheduleRepository
 import javax.inject.Inject
 
 class UpdateAppScheduleUseCase @Inject constructor(
-    private val scheduleRepository: ScheduleRepository
+    private val scheduleRepository: ScheduleRepository,
+    private val appScheduleManager: AppScheduleManager
 ) {
     suspend operator fun invoke(scheduleId: Long, newScheduledTime: Long): Result<Unit> {
 
@@ -24,6 +25,9 @@ class UpdateAppScheduleUseCase @Inject constructor(
             if (existingSchedule != null) {
                 val updatedSchedule = existingSchedule.copy(scheduledTime = newScheduledTime)
                 scheduleRepository.updateSchedule(updatedSchedule)
+
+                appScheduleManager.updateAppSchedule(scheduleId, existingSchedule.packageName, newScheduledTime)
+
                 Result.success(Unit)
             } else {
                 Result.failure(Exception("Schedule not found"))

@@ -1,14 +1,24 @@
 package com.challenge.scheduleapp
 
+import android.Manifest
+import android.app.AlarmManager
 import android.app.DatePickerDialog
 import android.app.TimePickerDialog
+import android.content.Intent
+import android.content.pm.PackageManager
+import android.net.Uri
+import android.os.Build
 import android.os.Bundle
+import android.os.PowerManager
+import android.provider.Settings
 import android.view.View
 import android.widget.Toast
 import androidx.activity.enableEdgeToEdge
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.content.ContextCompat
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.recyclerview.widget.LinearLayoutManager
@@ -24,6 +34,7 @@ import com.challenge.scheduleapp.presentation.viewmodel.ScheduleViewModel
 import dagger.hilt.android.AndroidEntryPoint
 import java.util.Calendar
 import kotlin.getValue
+import androidx.core.net.toUri
 
 @AndroidEntryPoint
 class ScheduleListActivity : AppCompatActivity() {
@@ -40,6 +51,73 @@ class ScheduleListActivity : AppCompatActivity() {
     private val binding: ActivityScheduleListBinding by lazy {
         ActivityScheduleListBinding.inflate(layoutInflater)
     }
+
+    private val notificationPermissionLauncher = registerForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { isGranted ->
+        if (!isGranted) {
+            Toast.makeText(
+                this,
+                "Notification permission is required for scheduling",
+                Toast.LENGTH_SHORT
+            ).show()
+        } else {
+            Toast.makeText(this, "Notification permission granted", Toast.LENGTH_SHORT).show()
+        }
+
+        checkAndRequestExactAlarmPermission()
+    }
+
+    private val exactAlarmPermissionLauncher = registerForActivityResult(
+        ActivityResultContracts.StartActivityForResult()
+    ) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            val alarmManager = getSystemService(ALARM_SERVICE) as AlarmManager
+            if (!alarmManager.canScheduleExactAlarms()) {
+                Toast.makeText(
+                    this,
+                    "Exact alarm permission is required for scheduling",
+                    Toast.LENGTH_SHORT
+                ).show()
+            } else {
+                Toast.makeText(this, "Exact alarm permission granted", Toast.LENGTH_SHORT).show()
+            }
+        }
+
+        checkAndRequestBatteryOptimizationPermission()
+    }
+
+    private val batteryOptimizationPermissionLauncher = registerForActivityResult(
+        ActivityResultContracts.StartActivityForResult()
+    ) {
+        val powerManager = getSystemService(POWER_SERVICE) as PowerManager
+        if (powerManager.isIgnoringBatteryOptimizations(packageName)) {
+            Toast.makeText(
+                this,
+                "Battery optimization permission is required for scheduling",
+                Toast.LENGTH_SHORT
+            ).show()
+        } else {
+            Toast.makeText(this, "Battery optimization permission granted", Toast.LENGTH_SHORT)
+                .show()
+        }
+        checkAndRequestOverlayPermission()
+    }
+
+    private val overlayPermissionLauncher = registerForActivityResult(
+        ActivityResultContracts.StartActivityForResult()
+    ) {
+        if (Settings.canDrawOverlays(this)) {
+            Toast.makeText(this, "Overlay permission granted", Toast.LENGTH_SHORT).show()
+        } else {
+            Toast.makeText(
+                this,
+                "Overlay permission is required for scheduling",
+                Toast.LENGTH_SHORT
+            ).show()
+        }
+    }
+
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -58,6 +136,110 @@ class ScheduleListActivity : AppCompatActivity() {
         setUpRecycleView()
         setUpWindowInsets()
         observeViewModel()
+
+        checkAndRequestNotificationPermission()
+    }
+
+    private fun checkAndRequestOverlayPermission() {
+        if (!Settings.canDrawOverlays(this)) {
+            AlertDialog.Builder(this)
+                .setTitle("Overlay Permission")
+                .setMessage("This app needs overlay permission to work properly")
+                .setPositiveButton("Grant") { _, _ ->
+                    val intent = Intent(
+                        Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+                        "package:$packageName".toUri()
+                    )
+                    overlayPermissionLauncher.launch(intent)
+                }
+                .setNegativeButton("Later", null)
+                .show()
+        }
+    }
+
+    private fun checkAndRequestBatteryOptimizationPermission() {
+        val powerManager = getSystemService(POWER_SERVICE) as PowerManager
+        if (!powerManager.isIgnoringBatteryOptimizations(packageName)) {
+            AlertDialog.Builder(this)
+                .setTitle("Battery Optimization")
+                .setMessage("This app needs battery optimization permission to work properly")
+                .setPositiveButton("Disable") { _, _ ->
+                    val intent = Intent(
+                        Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS,
+                        "package:$packageName".toUri()
+                    )
+                    batteryOptimizationPermissionLauncher.launch(intent)
+                }
+                .setNegativeButton("Later") { _, _ ->
+                    checkAndRequestOverlayPermission()
+                }
+                .setOnCancelListener {
+                    checkAndRequestOverlayPermission()
+                }
+                .show()
+        } else {
+            checkAndRequestOverlayPermission()
+        }
+
+    }
+
+    private fun checkAndRequestExactAlarmPermission() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            val alarmManager = getSystemService(ALARM_SERVICE) as AlarmManager
+            if (!alarmManager.canScheduleExactAlarms()) {
+                AlertDialog.Builder(this)
+                    .setTitle("Exact Alarm Permission")
+                    .setMessage("This app needs exact alarm permission to work properly")
+                    .setPositiveButton("Grant") { _, _ ->
+                        val intent = Intent(
+                            Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM,
+                            "package:$packageName".toUri()
+                        )
+                        exactAlarmPermissionLauncher.launch(intent)
+                    }
+                    .setNegativeButton("Later") { _, _ ->
+                        checkAndRequestBatteryOptimizationPermission()
+                    }
+                    .setOnCancelListener {
+                        checkAndRequestBatteryOptimizationPermission()
+                    }
+                    .show()
+            } else {
+                checkAndRequestBatteryOptimizationPermission()
+            }
+        } else {
+            checkAndRequestBatteryOptimizationPermission()
+        }
+    }
+
+    private fun checkAndRequestNotificationPermission() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            when {
+                ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS)
+                        == PackageManager.PERMISSION_GRANTED -> {
+                    checkAndRequestExactAlarmPermission()
+                }
+
+                shouldShowRequestPermissionRationale(Manifest.permission.POST_NOTIFICATIONS) -> {
+                    AlertDialog.Builder(this)
+                        .setTitle("Notification Permission")
+                        .setMessage("This app needs notification permission to work properly")
+                        .setPositiveButton("Grant") { _, _ ->
+                            notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+                        }
+                        .setNegativeButton("Cancel") { _, _ ->
+                            checkAndRequestExactAlarmPermission()
+                        }
+                        .show()
+                }
+
+                else -> {
+                    notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+                }
+            }
+        } else {
+            checkAndRequestExactAlarmPermission()
+        }
     }
 
     private fun setUpWindowInsets() {

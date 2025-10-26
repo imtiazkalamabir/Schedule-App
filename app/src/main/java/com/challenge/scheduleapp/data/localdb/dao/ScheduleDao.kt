@@ -28,4 +28,7 @@ interface ScheduleDao {
     @Query("DELETE FROM app_schedules WHERE id = :scheduleId")
     suspend fun deleteSchedule(scheduleId: Long)
 
+    @Query("SELECT * FROM app_schedules WHERE status = 'PENDING' AND scheduledTime BETWEEN :startTime AND :endTime AND id != :excludeId")
+    fun getPendingSchedulesCountInBetween(startTime: Long, endTime: Long, excludeId: Long = -1): Int
+
 }

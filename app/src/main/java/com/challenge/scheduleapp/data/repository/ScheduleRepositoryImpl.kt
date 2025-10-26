@@ -4,11 +4,9 @@ import com.challenge.scheduleapp.data.localdb.dao.ScheduleDao
 import com.challenge.scheduleapp.data.localdb.entity.toDomain
 import com.challenge.scheduleapp.data.localdb.entity.toEntity
 import com.challenge.scheduleapp.domain.model.AppSchedule
-import com.challenge.scheduleapp.domain.model.ScheduleStatus
 import com.challenge.scheduleapp.domain.repository.ScheduleRepository
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.flow.transform
 import javax.inject.Inject
 
 class ScheduleRepositoryImpl @Inject constructor(
@@ -19,11 +17,18 @@ class ScheduleRepositoryImpl @Inject constructor(
         return scheduleDao.insertSchedule(schedule.toEntity())
     }
 
-    override suspend fun hasTimeConflict(
-        scheduledTime: Long,
-        excludeId: Long?
-    ): Boolean {
-        return false
+    override suspend fun hasTimeConflict(scheduledTime: Long, excludeId: Long?): Boolean {
+        val timeFrame = 60 * 1000 // 1 min in ms
+        val startTime = scheduledTime - timeFrame
+        val endTime = scheduledTime + timeFrame
+
+        val pendingScheduleCount = scheduleDao.getPendingSchedulesCountInBetween(
+            startTime = startTime,
+            endTime = endTime,
+            excludeId = excludeId ?: -1
+        )
+
+        return pendingScheduleCount > 0
     }
 
     override suspend fun getAllSchedules(): Flow<List<AppSchedule>> {
