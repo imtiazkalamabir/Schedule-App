@@ -19,7 +19,7 @@ class AddAppScheduleUseCase @Inject constructor(
     ): Result<Long> {
         return try {
             if (scheduleRepository.hasTimeConflict(scheduledTime)) {
-                Result.failure(TimeConflictException("Time conflict"))
+                Result.failure(TimeConflictException("Time conflicting with another schedule"))
             } else if (scheduledTime <= System.currentTimeMillis()) {
                 Result.failure(InvalidTimeException("The scheduled time must be in the future"))
             } else {

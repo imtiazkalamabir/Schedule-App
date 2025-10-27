@@ -4,6 +4,7 @@ import com.challenge.scheduleapp.data.localdb.dao.ScheduleDao
 import com.challenge.scheduleapp.data.localdb.entity.toDomain
 import com.challenge.scheduleapp.data.localdb.entity.toEntity
 import com.challenge.scheduleapp.domain.model.AppSchedule
+import com.challenge.scheduleapp.domain.model.ScheduleStatus
 import com.challenge.scheduleapp.domain.repository.ScheduleRepository
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
@@ -18,6 +19,7 @@ class ScheduleRepositoryImpl @Inject constructor(
     }
 
     override suspend fun hasTimeConflict(scheduledTime: Long, excludeId: Long?): Boolean {
+        // Checking for scheduling time conflicts within 1 min range
         val timeFrame = 60 * 1000 // 1 min in ms
         val startTime = scheduledTime - timeFrame
         val endTime = scheduledTime + timeFrame
@@ -27,7 +29,6 @@ class ScheduleRepositoryImpl @Inject constructor(
             endTime = endTime,
             excludeId = excludeId ?: -1
         )
-
         return pendingScheduleCount > 0
     }
 
@@ -56,5 +57,15 @@ class ScheduleRepositoryImpl @Inject constructor(
         scheduleDao.deleteSchedule(scheduleId)
     }
 
+    override suspend fun markAsExecuted(scheduleId: Long) {
+        val schedule = scheduleDao.getScheduleById(scheduleId) ?: return
+        val updatedSchedule = schedule.copy(status = ScheduleStatus.EXECUTED.name)
+        scheduleDao.updateSchedule(updatedSchedule)
+    }
 
+    override suspend fun markAsFailed(scheduleId: Long) {
+        val schedule = scheduleDao.getScheduleById(scheduleId) ?: return
+        val updatedSchedule = schedule.copy(status = ScheduleStatus.FAILED.name)
+        scheduleDao.updateSchedule(updatedSchedule)
+    }
 }

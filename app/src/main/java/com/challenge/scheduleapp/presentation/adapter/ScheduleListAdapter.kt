@@ -80,14 +80,14 @@ class ScheduleListAdapter(
 
             when (schedule.status) {
                 ScheduleStatus.PENDING -> {
-                    // Pending: show edit and cancel buttons
+                    // For Pending: show edit and cancel buttons
                     binding.btnEdit.visibility = View.VISIBLE
                     binding.btnCancel.visibility = View.VISIBLE
                     binding.btnDelete.visibility = View.GONE
                 }
 
                 ScheduleStatus.EXECUTED, ScheduleStatus.CANCELLED, ScheduleStatus.FAILED -> {
-                    // Executed/Cancelled/Failed: show delete button only
+                    // For Executed/Cancelled/Failed: show delete button only
                     binding.btnEdit.visibility = View.GONE
                     binding.btnCancel.visibility = View.GONE
                     binding.btnDelete.visibility = View.VISIBLE

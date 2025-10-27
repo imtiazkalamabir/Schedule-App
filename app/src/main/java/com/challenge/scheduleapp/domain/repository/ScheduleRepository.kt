@@ -18,4 +18,8 @@ interface ScheduleRepository {
     suspend fun cancelSchedule(scheduleId: Long, newStatus: String)
 
     suspend fun deleteSchedule(scheduleId: Long)
+
+    suspend fun markAsExecuted(scheduleId: Long)
+
+    suspend fun markAsFailed(scheduleId: Long)
 }

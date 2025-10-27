@@ -6,7 +6,6 @@ import android.app.DatePickerDialog
 import android.app.TimePickerDialog
 import android.content.Intent
 import android.content.pm.PackageManager
-import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.os.PowerManager
@@ -52,22 +51,27 @@ class ScheduleListActivity : AppCompatActivity() {
         ActivityScheduleListBinding.inflate(layoutInflater)
     }
 
+    // Permission launcher for notifications
     private val notificationPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
     ) { isGranted ->
         if (!isGranted) {
             Toast.makeText(
                 this,
-                "Notification permission is required for scheduling",
+                getString(R.string.notification_permission_required),
                 Toast.LENGTH_SHORT
             ).show()
         } else {
-            Toast.makeText(this, "Notification permission granted", Toast.LENGTH_SHORT).show()
+            Toast.makeText(
+                this,
+                getString(R.string.notification_permission_granted), Toast.LENGTH_SHORT
+            ).show()
         }
 
         checkAndRequestExactAlarmPermission()
     }
 
+    // Activity launcher for exact alarm permission
     private val exactAlarmPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.StartActivityForResult()
     ) {
@@ -76,17 +80,21 @@ class ScheduleListActivity : AppCompatActivity() {
             if (!alarmManager.canScheduleExactAlarms()) {
                 Toast.makeText(
                     this,
-                    "Exact alarm permission is required for scheduling",
+                    getString(R.string.exact_alarm_permission_required),
                     Toast.LENGTH_SHORT
                 ).show()
             } else {
-                Toast.makeText(this, "Exact alarm permission granted", Toast.LENGTH_SHORT).show()
+                Toast.makeText(
+                    this,
+                    getString(R.string.exact_alarm_permission_granted), Toast.LENGTH_SHORT
+                ).show()
             }
         }
 
         checkAndRequestBatteryOptimizationPermission()
     }
 
+    // Activity launcher for battery optimization exclusion permission
     private val batteryOptimizationPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.StartActivityForResult()
     ) {
@@ -94,25 +102,30 @@ class ScheduleListActivity : AppCompatActivity() {
         if (powerManager.isIgnoringBatteryOptimizations(packageName)) {
             Toast.makeText(
                 this,
-                "Battery optimization permission is required for scheduling",
+                getString(R.string.battery_optimization_permission_required),
                 Toast.LENGTH_SHORT
             ).show()
         } else {
-            Toast.makeText(this, "Battery optimization permission granted", Toast.LENGTH_SHORT)
+            Toast.makeText(
+                this,
+                getString(R.string.battery_optimization_permission_granted), Toast.LENGTH_SHORT
+            )
                 .show()
         }
         checkAndRequestOverlayPermission()
     }
 
+    // Activity launcher for overlay permission
     private val overlayPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.StartActivityForResult()
     ) {
         if (Settings.canDrawOverlays(this)) {
-            Toast.makeText(this, "Overlay permission granted", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, getString(R.string.overlay_permission_granted), Toast.LENGTH_SHORT)
+                .show()
         } else {
             Toast.makeText(
                 this,
-                "Overlay permission is required for scheduling",
+                getString(R.string.overlay_permission_required),
                 Toast.LENGTH_SHORT
             ).show()
         }
@@ -137,22 +150,23 @@ class ScheduleListActivity : AppCompatActivity() {
         setUpWindowInsets()
         observeViewModel()
 
+        // starting all permission checks sequentially from here
         checkAndRequestNotificationPermission()
     }
 
     private fun checkAndRequestOverlayPermission() {
         if (!Settings.canDrawOverlays(this)) {
             AlertDialog.Builder(this)
-                .setTitle("Overlay Permission")
-                .setMessage("This app needs overlay permission to work properly")
-                .setPositiveButton("Grant") { _, _ ->
+                .setTitle(getString(R.string.overlay_permission_dialog_title))
+                .setMessage(getString(R.string.overlay_permission_dialog_message))
+                .setPositiveButton(getString(R.string.grant)) { _, _ ->
                     val intent = Intent(
                         Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
                         "package:$packageName".toUri()
                     )
                     overlayPermissionLauncher.launch(intent)
                 }
-                .setNegativeButton("Later", null)
+                .setNegativeButton(getString(R.string.later), null)
                 .show()
         }
     }
@@ -161,16 +175,16 @@ class ScheduleListActivity : AppCompatActivity() {
         val powerManager = getSystemService(POWER_SERVICE) as PowerManager
         if (!powerManager.isIgnoringBatteryOptimizations(packageName)) {
             AlertDialog.Builder(this)
-                .setTitle("Battery Optimization")
-                .setMessage("This app needs battery optimization permission to work properly")
-                .setPositiveButton("Disable") { _, _ ->
+                .setTitle(getString(R.string.battery_optimization_permission_dialog_title))
+                .setMessage(getString(R.string.battery_optimization_permission_dialog_message))
+                .setPositiveButton(getString(R.string.disable)) { _, _ ->
                     val intent = Intent(
                         Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS,
                         "package:$packageName".toUri()
                     )
                     batteryOptimizationPermissionLauncher.launch(intent)
                 }
-                .setNegativeButton("Later") { _, _ ->
+                .setNegativeButton(getString(R.string.later)) { _, _ ->
                     checkAndRequestOverlayPermission()
                 }
                 .setOnCancelListener {
@@ -188,16 +202,16 @@ class ScheduleListActivity : AppCompatActivity() {
             val alarmManager = getSystemService(ALARM_SERVICE) as AlarmManager
             if (!alarmManager.canScheduleExactAlarms()) {
                 AlertDialog.Builder(this)
-                    .setTitle("Exact Alarm Permission")
-                    .setMessage("This app needs exact alarm permission to work properly")
-                    .setPositiveButton("Grant") { _, _ ->
+                    .setTitle(getString(R.string.exact_alarm_permission_dialog_title))
+                    .setMessage(getString(R.string.exact_alarm_permission_dialog_message))
+                    .setPositiveButton(getString(R.string.grant)) { _, _ ->
                         val intent = Intent(
                             Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM,
                             "package:$packageName".toUri()
                         )
                         exactAlarmPermissionLauncher.launch(intent)
                     }
-                    .setNegativeButton("Later") { _, _ ->
+                    .setNegativeButton(getString(R.string.later)) { _, _ ->
                         checkAndRequestBatteryOptimizationPermission()
                     }
                     .setOnCancelListener {
@@ -222,12 +236,12 @@ class ScheduleListActivity : AppCompatActivity() {
 
                 shouldShowRequestPermissionRationale(Manifest.permission.POST_NOTIFICATIONS) -> {
                     AlertDialog.Builder(this)
-                        .setTitle("Notification Permission")
-                        .setMessage("This app needs notification permission to work properly")
-                        .setPositiveButton("Grant") { _, _ ->
+                        .setTitle(getString(R.string.notification_permission_dialog_title))
+                        .setMessage(getString(R.string.notification_permission_dialog_message))
+                        .setPositiveButton(getString(R.string.grant)) { _, _ ->
                             notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
                         }
-                        .setNegativeButton("Cancel") { _, _ ->
+                        .setNegativeButton(getString(R.string.cancel)) { _, _ ->
                             checkAndRequestExactAlarmPermission()
                         }
                         .show()
@@ -275,6 +289,9 @@ class ScheduleListActivity : AppCompatActivity() {
 
                     is ProcessResult.Error -> {
                         // Handle error
+                        if(it.message.equals("Time conflicting with another schedule")){
+
+                        }
                         Toast.makeText(this, it.message, Toast.LENGTH_SHORT).show()
                         shouldScrollToTop = false
                     }
@@ -320,6 +337,9 @@ class ScheduleListActivity : AppCompatActivity() {
         }
     }
 
+    /**
+     * Extension function for observing LiveData only once
+     */
     private fun <T> androidx.lifecycle.LiveData<T>.observeOnce(
         lifecycleOwner: androidx.lifecycle.LifecycleOwner,
         observer: (T) -> Unit
@@ -434,7 +454,6 @@ class ScheduleListActivity : AppCompatActivity() {
                         val newScheduledTime = calendar.timeInMillis
                         scheduleViewModel.updateAppSchedule(
                             schedule.id,
-                            schedule.packageName,
                             newScheduledTime
                         )
                     },
@@ -456,25 +475,23 @@ class ScheduleListActivity : AppCompatActivity() {
 
     private fun showCancelConfirmDialog(schedule: AppSchedule) {
         AlertDialog.Builder(this)
-            .setTitle("Cancel Schedule")
-            .setMessage("Are you sure you want to cancel this schedule?")
-            .setPositiveButton("Yes") { _, _ ->
+            .setTitle(getString(R.string.cancel_schedule_dialog_title))
+            .setMessage(getString(R.string.cancel_schedule_dialog_message))
+            .setPositiveButton(getString(R.string.yes)) { _, _ ->
                 scheduleViewModel.cancelAppSchedule(schedule.id, ScheduleStatus.CANCELLED.name)
             }
-            .setNegativeButton("No", null)
+            .setNegativeButton(getString(R.string.no), null)
             .show()
     }
 
     private fun showDeleteConfirmDialog(schedule: AppSchedule) {
         AlertDialog.Builder(this)
-            .setTitle("Delete Schedule")
-            .setMessage("Are you sure you want to delete this schedule?")
-            .setPositiveButton("Delete") { _, _ ->
+            .setTitle(getString(R.string.delete_schedule_dialog_title))
+            .setMessage(getString(R.string.delete_schedule_dialog_message))
+            .setPositiveButton(getString(R.string.delete)) { _, _ ->
                 scheduleViewModel.deleteAppSchedule(schedule.id)
             }
-            .setNegativeButton("Cancel", null)
+            .setNegativeButton(getString(R.string.cancel), null)
             .show()
     }
-
-
 }

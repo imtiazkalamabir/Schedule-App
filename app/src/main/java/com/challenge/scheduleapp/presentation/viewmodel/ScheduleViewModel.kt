@@ -15,11 +15,14 @@ import com.challenge.scheduleapp.domain.usecase.GetInstalledAppsUseCase
 import com.challenge.scheduleapp.domain.usecase.UpdateAppScheduleUseCase
 import com.challenge.scheduleapp.presentation.model.ScheduleListUiState
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import javax.inject.Inject
 
 @FlowPreview
@@ -54,7 +57,8 @@ class ScheduleViewModel @Inject constructor(
             _appSchedulesUiState.value = ScheduleListUiState(isLoading = true)
 
             getAllAppScheduleUseCase()
-                .debounce(300)
+                .flowOn(Dispatchers.IO)
+                .debounce(300) // waiting here for 300ms before emitting new value to avoid rapid updates
                 .distinctUntilChanged()
                 .catch { e ->
                     _appSchedulesUiState.postValue(ScheduleListUiState(error = "Error loading schedules"))
@@ -68,6 +72,7 @@ class ScheduleViewModel @Inject constructor(
 
     fun loadInstalledApps() {
 
+        // Avoiding loading if already loaded or during loading state
         if (isLoadingApps || !_installedApps.value.isNullOrEmpty()) {
             return
         }
@@ -76,7 +81,9 @@ class ScheduleViewModel @Inject constructor(
 
         viewModelScope.launch {
             try {
-                val apps = getInstalledAppsUseCase()
+                val apps = withContext(Dispatchers.IO) {
+                    getInstalledAppsUseCase()
+                }
                 _installedApps.postValue(apps)
             } catch (e: Exception) {
                 _processResult.postValue(
@@ -93,16 +100,18 @@ class ScheduleViewModel @Inject constructor(
     fun addAppSchedule(packageName: String, appName: String, scheduledTime: Long) {
         Log.d(TAG, "addAppSchedule: $packageName, $appName, $scheduledTime")
         viewModelScope.launch {
-            val result = addAppScheduleUseCase(packageName, appName, scheduledTime)
+            val result = withContext(Dispatchers.IO) {
+                addAppScheduleUseCase(packageName, appName, scheduledTime)
+            }
             result.onSuccess { scheduleId ->
                 Log.d(TAG, "Schedule added to database successfully with id: $scheduleId")
-
-                // Schedule the alarm for the selected time
-
                 _processResult.postValue(ProcessResult.Success("Schedule added successfully"))
-
             }.onFailure { e ->
-                _processResult.postValue(ProcessResult.Error("Failed to add scheduled"))
+                if (e.message.equals("Time conflicting with another schedule") || e.message.equals("The scheduled time must be in the future")) {
+                    _processResult.postValue(ProcessResult.Error("Failed: ${e.message}"))
+                } else {
+                    _processResult.postValue(ProcessResult.Error("Failed to add scheduled"))
+                }
                 Log.e(TAG, "Error adding schedule: ${e.message}")
             }
         }
@@ -110,7 +119,9 @@ class ScheduleViewModel @Inject constructor(
 
     fun cancelAppSchedule(scheduleId: Long, newStatus: String) {
         viewModelScope.launch {
-            val result = cancelAppScheduleUseCase(scheduleId, newStatus)
+            val result = withContext(Dispatchers.IO) {
+                cancelAppScheduleUseCase(scheduleId, newStatus)
+            }
             result.onSuccess {
                 _processResult.postValue(ProcessResult.Success("Schedule cancelled successfully"))
                 Log.d(TAG, "Schedule cancelled successfully")
@@ -124,7 +135,9 @@ class ScheduleViewModel @Inject constructor(
     fun deleteAppSchedule(scheduleId: Long) {
         viewModelScope.launch {
             try {
-                deleteAppScheduleUseCase(scheduleId)
+                withContext(Dispatchers.IO) {
+                    deleteAppScheduleUseCase(scheduleId)
+                }
                 _processResult.postValue(ProcessResult.Success("Schedule deleted successfully"))
                 Log.d(TAG, "Schedule deleted successfully")
             } catch (e: Exception) {
@@ -134,24 +147,28 @@ class ScheduleViewModel @Inject constructor(
         }
     }
 
-    fun updateAppSchedule(scheduleId: Long, packageName: String, newScheduledTime: Long) {
+    fun updateAppSchedule(scheduleId: Long, newScheduledTime: Long) {
         viewModelScope.launch {
-            val result = updateAppScheduleUseCase(scheduleId, newScheduledTime)
+            val result = withContext(Dispatchers.IO) {
+                updateAppScheduleUseCase(scheduleId, newScheduledTime)
+            }
             result.onSuccess {
                 _processResult.postValue(ProcessResult.Success("Schedule updated successfully"))
                 Log.d(TAG, "Schedule updated successfully")
             }.onFailure { e ->
-                _processResult.postValue(ProcessResult.Error("Failed to update schedule"))
+                if (e.message.equals("Time conflicting with another schedule") || e.message.equals("The scheduled time must be in the future")) {
+                    _processResult.postValue(ProcessResult.Error("Failed: ${e.message}"))
+                } else {
+                    _processResult.postValue(ProcessResult.Error("Failed to update schedule"))
+                }
                 Log.e(TAG, "Error updating schedule: ${e.message}")
             }
         }
     }
 
-
     fun clearProcessResult() {
         _processResult.value = null
     }
-
 
     companion object {
         private const val TAG = "ScheduleViewModel"

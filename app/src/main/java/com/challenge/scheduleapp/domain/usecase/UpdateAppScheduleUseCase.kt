@@ -13,7 +13,7 @@ class UpdateAppScheduleUseCase @Inject constructor(
     suspend operator fun invoke(scheduleId: Long, newScheduledTime: Long): Result<Unit> {
 
         if (scheduleRepository.hasTimeConflict(newScheduledTime, scheduleId)) {
-            return Result.failure(TimeConflictException("Another schedule already has this time"))
+            return Result.failure(TimeConflictException("Time conflicting with another schedule"))
         }
 
         if (newScheduledTime <= System.currentTimeMillis()) {
@@ -23,10 +23,15 @@ class UpdateAppScheduleUseCase @Inject constructor(
         return try {
             val existingSchedule = scheduleRepository.getScheduleById(scheduleId)
             if (existingSchedule != null) {
+
                 val updatedSchedule = existingSchedule.copy(scheduledTime = newScheduledTime)
                 scheduleRepository.updateSchedule(updatedSchedule)
 
-                appScheduleManager.updateAppSchedule(scheduleId, existingSchedule.packageName, newScheduledTime)
+                appScheduleManager.updateAppSchedule(
+                    scheduleId,
+                    existingSchedule.packageName,
+                    newScheduledTime
+                )
 
                 Result.success(Unit)
             } else {
