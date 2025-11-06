@@ -73,7 +73,7 @@ class AppLaunchReceiver : BroadcastReceiver() {
                 val isAppInForeground = isAppInForeground(context)
                 Log.d(TAG, "Foreground check: isAppInForeground: $isAppInForeground")
 
-                processLaunch(context, scheduleId, packageName!!, appName)
+                processLaunch(context, scheduleId, packageName!!, appName, isAppInForeground)
 
             } catch (e: Exception) {
                 Log.e(TAG, "Error processing launch: ${e.message}", e)
@@ -87,7 +87,8 @@ class AppLaunchReceiver : BroadcastReceiver() {
         context: Context,
         scheduleId: Long,
         packageName: String,
-        appName: String
+        appName: String,
+        isAppInForeground: Boolean
     ) {
         // Launching the app using overlay service for Android 10+ background compat issue
         val packageManager = context.packageManager
@@ -100,7 +101,7 @@ class AppLaunchReceiver : BroadcastReceiver() {
                 val hasOverlayPermission = Settings.canDrawOverlays(context)
 
                 // using overlay service to bypass Android 10+ background restrictions
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q && hasOverlayPermission) {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q && hasOverlayPermission && !isAppInForeground) {
                     Log.d(TAG, "Using overlay service to launch: $appName")
                     launchAppWithOverlay(context, packageName, appName, scheduleId)
                     launched = true

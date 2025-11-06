@@ -56,7 +56,7 @@ class AppScheduleManagerImpl @Inject constructor(
                     "Exact Alarm scheduled at $scheduledTime for package: $packageName with scheduleId: $scheduleId"
                 )
             } else {
-                alarmManager.setExactAndAllowWhileIdle(
+                alarmManager.setAndAllowWhileIdle(
                     AlarmManager.RTC_WAKEUP,
                     time,
                     pendingIntent
@@ -86,7 +86,7 @@ class AppScheduleManagerImpl @Inject constructor(
             context,
             scheduleId.toInt(),
             intent,
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+            PendingIntent.FLAG_NO_CREATE or PendingIntent.FLAG_IMMUTABLE
         )
         alarmManager.cancel(pendingIntent)
         pendingIntent.cancel()
